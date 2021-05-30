@@ -1,0 +1,18 @@
+2021-05-30 18:03:58 [INFO ] http-nio-8110-exec-9 ExcelDictDTOListener.java:30 com.atguigu.srb.core.listener.ExcelDictDTOListener 解析到一条记录----->ExcelDictDTO(id=81004, parentId=81000, name=结束, value=3, dictCode=null)
+2021-05-30 18:03:58 [INFO ] http-nio-8110-exec-9 ExcelDictDTOListener.java:48 com.atguigu.srb.core.listener.ExcelDictDTOListener 5 条数据被存储到数据库
+2021-05-30 18:03:58 [INFO ] http-nio-8110-exec-9 ExcelDictDTOListener.java:52 com.atguigu.srb.core.listener.ExcelDictDTOListener 5 条数据被存储到数据库成功!
+2021-05-30 18:03:58 [INFO ] http-nio-8110-exec-9 ExcelDictDTOListener.java:30 com.atguigu.srb.core.listener.ExcelDictDTOListener 解析到一条记录----->ExcelDictDTO(id=81005, parentId=81000, name=审批不通过, value=-1, dictCode=null)
+2021-05-30 18:03:58 [INFO ] http-nio-8110-exec-9 ExcelDictDTOListener.java:30 com.atguigu.srb.core.listener.ExcelDictDTOListener 解析到一条记录----->ExcelDictDTO(id=82000, parentId=1, name=学校性质, value=null, dictCode=SchoolStatus)
+2021-05-30 18:03:58 [INFO ] http-nio-8110-exec-9 ExcelDictDTOListener.java:30 com.atguigu.srb.core.listener.ExcelDictDTOListener 解析到一条记录----->ExcelDictDTO(id=82001, parentId=82000, name=211/985, value=null, dictCode=null)
+2021-05-30 18:03:58 [INFO ] http-nio-8110-exec-9 ExcelDictDTOListener.java:30 com.atguigu.srb.core.listener.ExcelDictDTOListener 解析到一条记录----->ExcelDictDTO(id=82002, parentId=82000, name=一本, value=null, dictCode=null)
+2021-05-30 18:03:58 [INFO ] http-nio-8110-exec-9 ExcelDictDTOListener.java:30 com.atguigu.srb.core.listener.ExcelDictDTOListener 解析到一条记录----->ExcelDictDTO(id=82003, parentId=82000, name=二本, value=null, dictCode=null)
+2021-05-30 18:03:58 [INFO ] http-nio-8110-exec-9 ExcelDictDTOListener.java:48 com.atguigu.srb.core.listener.ExcelDictDTOListener 5 条数据被存储到数据库
+2021-05-30 18:03:58 [INFO ] http-nio-8110-exec-9 ExcelDictDTOListener.java:52 com.atguigu.srb.core.listener.ExcelDictDTOListener 5 条数据被存储到数据库成功!
+2021-05-30 18:03:58 [INFO ] http-nio-8110-exec-9 ExcelDictDTOListener.java:30 com.atguigu.srb.core.listener.ExcelDictDTOListener 解析到一条记录----->ExcelDictDTO(id=82004, parentId=82000, name=三本, value=null, dictCode=null)
+2021-05-30 18:03:58 [INFO ] http-nio-8110-exec-9 ExcelDictDTOListener.java:30 com.atguigu.srb.core.listener.ExcelDictDTOListener 解析到一条记录----->ExcelDictDTO(id=82005, parentId=82000, name=高职高专, value=null, dictCode=null)
+2021-05-30 18:03:58 [INFO ] http-nio-8110-exec-9 ExcelDictDTOListener.java:30 com.atguigu.srb.core.listener.ExcelDictDTOListener 解析到一条记录----->ExcelDictDTO(id=82006, parentId=82000, name=中职中专, value=null, dictCode=null)
+2021-05-30 18:03:58 [INFO ] http-nio-8110-exec-9 ExcelDictDTOListener.java:30 com.atguigu.srb.core.listener.ExcelDictDTOListener 解析到一条记录----->ExcelDictDTO(id=82007, parentId=82000, name=高中及以下, value=null, dictCode=null)
+2021-05-30 18:03:58 [INFO ] http-nio-8110-exec-9 ExcelDictDTOListener.java:48 com.atguigu.srb.core.listener.ExcelDictDTOListener 4 条数据被存储到数据库
+2021-05-30 18:03:58 [INFO ] http-nio-8110-exec-9 ExcelDictDTOListener.java:52 com.atguigu.srb.core.listener.ExcelDictDTOListener 4 条数据被存储到数据库成功!
+2021-05-30 18:03:58 [INFO ] http-nio-8110-exec-9 ExcelDictDTOListener.java:44 com.atguigu.srb.core.listener.ExcelDictDTOListener 所有数据解析完成！
+2021-05-30 18:03:58 [INFO ] http-nio-8110-exec-9 DictServiceImpl.java:34 com.atguigu.srb.core.service.impl.DictServiceImpl Excel导入成功
