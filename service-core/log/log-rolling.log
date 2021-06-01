@@ -1,1 +1,6 @@
-2021-05-30 20:30:09 [INFO ] main StartupInfoLogger.java:61 com.atguigu.srb.core.RedisTemplateTests Started RedisTemplateTests in 5.282 seconds (JVM running for 6.187)
+2021-06-01 21:41:59 [INFO ] http-nio-8110-exec-6 DictServiceImpl.java:74 com.atguigu.srb.core.service.impl.DictServiceImpl 从数据库中获取数据列表
+2021-06-01 21:41:59 [INFO ] http-nio-8110-exec-6 DictServiceImpl.java:86 com.atguigu.srb.core.service.impl.DictServiceImpl 将数据存入redis
+2021-06-01 21:42:00 [INFO ] http-nio-8110-exec-8 DictServiceImpl.java:74 com.atguigu.srb.core.service.impl.DictServiceImpl 从数据库中获取数据列表
+2021-06-01 21:42:00 [INFO ] http-nio-8110-exec-8 DictServiceImpl.java:86 com.atguigu.srb.core.service.impl.DictServiceImpl 将数据存入redis
+2021-06-01 21:43:25 [INFO ] http-nio-8110-exec-10 DictServiceImpl.java:66 com.atguigu.srb.core.service.impl.DictServiceImpl 从redis中获取数据列表
+2021-06-01 21:43:28 [INFO ] http-nio-8110-exec-1 DictServiceImpl.java:66 com.atguigu.srb.core.service.impl.DictServiceImpl 从redis中获取数据列表
