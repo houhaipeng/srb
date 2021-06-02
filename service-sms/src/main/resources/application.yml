@@ -1,0 +1,29 @@
+server:
+  port: 8120
+
+spring:
+  profiles:
+    active: dev #环境设置
+    application:
+      name: service-sms #服务名
+
+  redis:
+    host: 192.168.0.108
+    port: 6379
+    timeout: 3000ms #最大等待时间，超时则抛出异常，否则请求一直等待
+    #redis连接池
+    lettuce:
+      pool:
+        max-active: 20 #最大连接数，负值表示没有限制，默认8
+        max-wait: -1   #最大阻塞等待时间，负值表示没有限制，默认为-1
+        max-idle: 8    #最大空闲连接，默认8
+        min-idle: 0    #最小空闲连接，默认0
+
+#阿里云短信
+aliyun:
+  sms:
+    region-id: cn-shanghai
+    key-id: LTAI5tRf9exKZvsN7iosbcAU
+    key-secret: QW81vTiP4DupBwy8L8Vf90DBeCTcya
+    template-code: 模版
+    sign-name: 签名
