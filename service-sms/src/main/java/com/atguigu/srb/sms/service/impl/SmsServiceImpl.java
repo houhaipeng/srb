@@ -8,6 +8,7 @@ import com.aliyuncs.exceptions.ClientException;
 import com.aliyuncs.exceptions.ServerException;
 import com.aliyuncs.http.MethodType;
 import com.aliyuncs.profile.DefaultProfile;
+import com.atguigu.common.exception.Assert;
 import com.atguigu.common.exception.BusinessException;
 import com.atguigu.common.result.ResponseEnum;
 import com.atguigu.srb.sms.service.SmsService;
@@ -16,6 +17,7 @@ import com.google.gson.Gson;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+import java.util.HashMap;
 import java.util.Map;
 
 @Service
@@ -38,13 +40,28 @@ public class SmsServiceImpl implements SmsService {
         request.putQueryParameter("SignName", mobile);
         request.putQueryParameter("TemplateCode", SmsProperties.TEMPLATE_CODE);
         Gson gson = new Gson();
+        //map转json
         String jsonParam = gson.toJson(param);
         request.putQueryParameter("TemplateParam", jsonParam);
 
         try {
             //使用客户端对象携带请求参数对象向远程阿里云服务发起请求
             CommonResponse response = client.getCommonResponse(request);
-            System.out.println(response.getData());
+            System.out.println("response.getData():" + response.getData());
+
+            //通信失败的处理
+            boolean success = response.getHttpResponse().isSuccess();
+            Assert.isTrue(success, ResponseEnum.ALIYUN_RESPONSE_ERROR);
+
+            //获取响应结果
+            String data = response.getData();
+            HashMap<String, String> resultMap = gson.fromJson(data, HashMap.class);
+            String code = resultMap.get("Code");
+            String message = resultMap.get("Message");
+            log.info("code:" + code + ", message:" + message);
+            //业务失败的处理
+            Assert.notEquals("isv.BUSINESS_LIMIT_CONTROL", code, ResponseEnum.ALIYUN_SMS_LIMIT_CONTROL_ERROR);
+            Assert.equals("OK", code, ResponseEnum.ALIYUN_SMS_ERROR);
         } catch (ServerException e) {
             log.error("阿里云短信发送sdk失败:" + e.getErrCode() + "," + e.getErrMsg());
             throw new BusinessException(ResponseEnum.ALIYUN_SMS_ERROR, e);
