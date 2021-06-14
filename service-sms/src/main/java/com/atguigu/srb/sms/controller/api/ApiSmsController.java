@@ -6,7 +6,6 @@ import com.atguigu.common.result.ResponseEnum;
 import com.atguigu.common.util.RandomUtils;
 import com.atguigu.common.util.RegexValidateUtils;
 import com.atguigu.srb.sms.service.SmsService;
-import com.atguigu.srb.sms.util.SmsProperties;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiParam;
@@ -44,7 +43,7 @@ public class ApiSmsController {
         String code = RandomUtils.getFourBitRandom();
         Map<String, Object> map = new HashMap<>();
         map.put("code", code);
-        smsService.send(mobile, SmsProperties.TEMPLATE_CODE, map);
+//        smsService.send(mobile, SmsProperties.TEMPLATE_CODE, map);
         //将验证码存入redis
         redisTemplate.opsForValue().set("srb:sms:code:" + mobile, code, 5, TimeUnit.MINUTES);
         return R.ok().message("短信发送成功");
