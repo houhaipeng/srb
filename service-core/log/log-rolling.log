@@ -1,3 +1,0 @@
-2021-06-06 19:13:41 [INFO ] main StartupInfoLogger.java:55 com.atguigu.srb.core.ServiceCoreApplication Starting ServiceCoreApplication on 192.168.0.106 with PID 659 (/Users/haipenghou/IdeaProjects/atguiguProject/srb/service-core/target/classes started by haipenghou in /Users/haipenghou/IdeaProjects/atguiguProject/srb)
-2021-06-06 19:13:41 [INFO ] main SpringApplication.java:655 com.atguigu.srb.core.ServiceCoreApplication The following profiles are active: dev
-2021-06-06 19:13:47 [INFO ] main StartupInfoLogger.java:61 com.atguigu.srb.core.ServiceCoreApplication Started ServiceCoreApplication in 7.482 seconds (JVM running for 9.52)

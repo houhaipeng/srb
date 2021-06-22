@@ -4,9 +4,8 @@ server:
 spring:
   profiles:
     active: dev #环境设置
-    application:
-      name: service-sms #服务名
-
+  application:
+    name: service-sms #服务名
   redis:
     host: 192.168.0.108
     port: 6379
@@ -18,6 +17,11 @@ spring:
         max-wait: -1   #最大阻塞等待时间，负值表示没有限制，默认为-1
         max-idle: 8    #最大空闲连接，默认8
         min-idle: 0    #最小空闲连接，默认0
+  cloud:
+    nacos:
+      discovery:
+        server-addr: localhost:8848
+
 
 #阿里云短信
 aliyun:
@@ -27,3 +31,17 @@ aliyun:
     key-secret: QW81vTiP4DupBwy8L8Vf90DBeCTcya
     template-code: 模版
     sign-name: 签名
+
+#超时控制,openfeign默认的连接超时时间为1秒
+feign:
+  client:
+    config:
+      default:
+        connectTimeout: 10000 #连接超时配置
+        readTimeout: 600000 #执行超时配置
+  sentinel:
+    enabled: true #开启Feign对Sentinel的支持
+
+logging:
+  level:
+    com.atguigu.srb.sms.client.CoreUserInfoClient: DEBUG #以什么级别监控哪个接口
