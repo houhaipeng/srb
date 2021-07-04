@@ -2,6 +2,7 @@ package com.atguigu.srb.core.controller.admin;
 
 import com.atguigu.common.result.R;
 import com.atguigu.srb.core.pojo.entity.Borrower;
+import com.atguigu.srb.core.pojo.vo.BorrowerApprovalVO;
 import com.atguigu.srb.core.pojo.vo.BorrowerDetailVO;
 import com.atguigu.srb.core.service.BorrowerService;
 import com.baomidou.mybatisplus.core.metadata.IPage;
@@ -47,5 +48,12 @@ public class AdminBorrowerController {
             @PathVariable Long id) {
         BorrowerDetailVO borrowerDetailVO = borrowerService.getBorrowerDetailVOById(id);
         return R.ok().data("borrowerDetailVO", borrowerDetailVO);
+    }
+
+    @ApiOperation("借款额度审批")
+    @PostMapping("/approval")
+    public R approval(@RequestBody BorrowerApprovalVO borrowerApprovalVO) {
+        borrowerService.approval(borrowerApprovalVO);
+        return R.ok().message("审批完成");
     }
 }

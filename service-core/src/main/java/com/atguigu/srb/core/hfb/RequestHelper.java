@@ -30,6 +30,7 @@ public class RequestHelper {
         if(paramMap.containsKey("sign")) {
             paramMap.remove("sign");
         }
+        //是对key排序
         TreeMap<String, Object> sorted = new TreeMap<>(paramMap);
         StringBuilder str = new StringBuilder();
         for (Map.Entry<String, Object> param : sorted.entrySet()) {
@@ -94,6 +95,7 @@ public class RequestHelper {
             }
             log.info(String.format("--> 发送请求到汇付宝：post data %1s", postdata));
             byte[] reqData = postdata.toString().getBytes("utf-8");
+            //从汇付宝得到的响应数据
             byte[] respdata = HttpUtils.doPost(url,reqData);
             result = new String(respdata);
             log.info(String.format("--> 汇付宝应答结果：result data %1s", result));
