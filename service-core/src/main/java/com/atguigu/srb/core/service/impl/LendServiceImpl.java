@@ -1,19 +1,25 @@
 package com.atguigu.srb.core.service.impl;
 
+import com.alibaba.fastjson.JSONObject;
+import com.atguigu.common.exception.BusinessException;
 import com.atguigu.srb.core.enums.LendStatusEnum;
+import com.atguigu.srb.core.enums.ReturnMethodEnum;
+import com.atguigu.srb.core.enums.TransTypeEnum;
+import com.atguigu.srb.core.hfb.HfbConst;
+import com.atguigu.srb.core.hfb.RequestHelper;
 import com.atguigu.srb.core.mapper.BorrowerMapper;
 import com.atguigu.srb.core.mapper.LendMapper;
-import com.atguigu.srb.core.pojo.entity.BorrowInfo;
-import com.atguigu.srb.core.pojo.entity.Borrower;
-import com.atguigu.srb.core.pojo.entity.Lend;
+import com.atguigu.srb.core.mapper.UserAccountMapper;
+import com.atguigu.srb.core.mapper.UserInfoMapper;
+import com.atguigu.srb.core.pojo.bo.TransFlowBO;
+import com.atguigu.srb.core.pojo.entity.*;
 import com.atguigu.srb.core.pojo.vo.BorrowInfoApprovalVO;
 import com.atguigu.srb.core.pojo.vo.BorrowerDetailVO;
-import com.atguigu.srb.core.service.BorrowerService;
-import com.atguigu.srb.core.service.DictService;
-import com.atguigu.srb.core.service.LendService;
-import com.atguigu.srb.core.util.LendNoUtils;
+import com.atguigu.srb.core.service.*;
+import com.atguigu.srb.core.util.*;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import javax.annotation.Resource;
@@ -21,9 +27,11 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * <p>
@@ -34,6 +42,7 @@ import java.util.Map;
  * @since 2021-02-20
  */
 @Service
+@Slf4j
 public class LendServiceImpl extends ServiceImpl<LendMapper, Lend> implements LendService {
 
     @Resource
@@ -44,6 +53,24 @@ public class LendServiceImpl extends ServiceImpl<LendMapper, Lend> implements Le
 
     @Resource
     private BorrowerService borrowerService;
+
+    @Resource
+    private UserInfoMapper userInfoMapper;
+
+    @Resource
+    private UserAccountMapper userAccountMapper;
+
+    @Resource
+    private LendItemService lendItemService;
+
+    @Resource
+    private TransFlowService transFlowService;
+
+    @Resource
+    private LendReturnService lendReturnService;
+
+    @Resource
+    private LendItemReturnService lendItemReturnService;
 
     @Override
     public void createLend(BorrowInfoApprovalVO borrowInfoApprovalVO, BorrowInfo borrowInfo) {
@@ -130,4 +157,275 @@ public class LendServiceImpl extends ServiceImpl<LendMapper, Lend> implements Le
         result.put("borrower", borrowerDetailVO);
         return result;
     }
+
+    @Override
+    public BigDecimal getInterestCount(BigDecimal invest, BigDecimal yearRate, Integer totalmonth, Integer returnMethod) {
+
+        BigDecimal interestCount;
+
+        if (returnMethod.intValue() == ReturnMethodEnum.ONE.getMethod()) {
+            interestCount = Amount1Helper.getInterestCount(invest, yearRate, totalmonth);
+        } else if (returnMethod.intValue() == ReturnMethodEnum.TWO.getMethod()) {
+            interestCount = Amount2Helper.getInterestCount(invest, yearRate, totalmonth);
+        } else if (returnMethod.intValue() == ReturnMethodEnum.THREE.getMethod()) {
+            interestCount = Amount3Helper.getInterestCount(invest, yearRate, totalmonth);
+        } else {
+            interestCount = Amount4Helper.getInterestCount(invest, yearRate, totalmonth);
+        }
+
+        return interestCount;
+    }
+
+    @Override
+    public void makeLoan(Long id) {
+
+        //获取标的信息
+        Lend lend = baseMapper.selectById(id);
+
+        //调用汇付宝放款接口
+        Map<String, Object> map = new HashMap<>();
+        map.put("agentId", HfbConst.AGENT_ID);
+        map.put("agentProjectCode", lend.getLendNo());
+        map.put("agentBillNo", LendNoUtils.getLoanNo());
+        //月化率
+        BigDecimal monthRate = lend.getServiceRate().divide(new BigDecimal(12), 8, BigDecimal.ROUND_DOWN);
+        //已投金额 * 月化率 * 投资时长 = 平台服务费
+        BigDecimal realAmount = lend.getInvestAmount().multiply(monthRate).multiply(new BigDecimal(lend.getPeriod()));
+        map.put("mchFee", realAmount);
+        map.put("timestamp", RequestHelper.getTimestamp());
+        map.put("sign", RequestHelper.getSign(map));
+        //提交远程请求
+        JSONObject result = RequestHelper.sendRequest(map, HfbConst.MAKE_LOAD_URL);
+        log.info("放款结果：" + result.toJSONString());
+        //放款失败的处理
+        if (!"0000".equals(result.getString("resultCode"))) {
+            throw new BusinessException(result.getString("resultMsg"));
+        }
+
+        //1. 标的状态和标的平台收益:更改标的相关信息
+        //平台收益
+        lend.setRealAmount(realAmount);
+        lend.setStatus(LendStatusEnum.PAY_RUN.getStatus());
+        lend.setPaymentTime(LocalDateTime.now());
+        baseMapper.updateById(lend);
+
+        //2. 给借款账号转入金额
+        //获取借款人bindCode
+        Long userId = lend.getUserId();
+        UserInfo userInfo = userInfoMapper.selectById(userId);
+        String bindCode = userInfo.getBindCode();
+        //在user_account表中修改借款人金额，转账,汇付宝计算出借款人转入金额
+        BigDecimal voteAmt = new BigDecimal(result.getString("voteAmt"));
+        userAccountMapper.updateAccount(bindCode, voteAmt, new BigDecimal(0));
+
+        //3. 增加借款交易流水
+        TransFlowBO transFlowBO = new TransFlowBO(
+                result.getString("agentBillNo"),
+                bindCode,
+                voteAmt,
+                TransTypeEnum.BORROW_BACK,
+                "项目放款，项目编号：" + lend.getLendNo() + ", 项目名称：" + lend.getTitle()
+        );
+        transFlowService.saveTransFlow(transFlowBO);
+        //4. 解冻并扣除投资人资金
+        //获取某个标的下的投资列表
+        List<LendItem> lendItems = lendItemService.selectByLendId(id, 1);
+        lendItems.forEach(lendItem -> {
+            Long investUserId = lendItem.getInvestUserId();
+            UserInfo investUserInfo = userInfoMapper.selectById(investUserId);
+            String investBindCode = investUserInfo.getBindCode();
+            BigDecimal investAmount = lendItem.getInvestAmount();
+            userAccountMapper.updateAccount(
+                    investBindCode, new BigDecimal(0), investAmount.negate());
+            //5. 增加投资人交易流水
+            TransFlowBO investTransFlowBO = new TransFlowBO(
+                    LendNoUtils.getTransNo(),
+                    investBindCode,
+                    investAmount,
+                    TransTypeEnum.INVEST_UNLOCK,
+                    "项目放款,冻结资金转出，项目编号：" + lend.getLendNo() + ", 项目名称：" + lend.getTitle()
+            );
+            transFlowService.saveTransFlow(investTransFlowBO);
+        });
+
+
+        //6. 生成借款人还款计划和出借人回款计划
+        this.repaymentPlan(lend);
+
+    }
+
+
+    //还款计划
+    private void repaymentPlan(Lend lend) {
+
+        //还款计划列表
+        List<LendReturn> lendReturnList = new ArrayList<>();
+
+        //按还款期数生成还款计划
+        int len = lend.getPeriod().intValue();
+
+        for (int i = 1; i <= len; i++) {
+            //对借款人每期还款,创建还款计划列表
+            LendReturn lendReturn = new LendReturn();
+            //填充基本属性
+            lendReturn.setReturnNo(LendNoUtils.getReturnNo());
+            lendReturn.setLendId(lend.getId());
+            lendReturn.setBorrowInfoId(lend.getBorrowInfoId());
+            lendReturn.setUserId(lend.getUserId());
+            lendReturn.setAmount(lend.getAmount());
+            lendReturn.setBaseAmount(lend.getInvestAmount());
+            lendReturn.setLendYearRate(lend.getLendYearRate());
+            //当前期数
+            lendReturn.setCurrentPeriod(i);
+            lendReturn.setReturnMethod(lend.getReturnMethod());
+
+            //手续费
+            lendReturn.setFee(new BigDecimal("0"));
+            //第二个月开始还款
+            lendReturn.setReturnDate(lend.getLendStartDate().plusMonths(i));
+            lendReturn.setOverdue(false);
+
+            //判断是否是最后一期还款
+            if (i == len) {
+                lendReturn.setLast(true);
+            } else {
+                lendReturn.setLast(false);
+            }
+
+            //设置还款状态
+            lendReturn.setStatus(0);
+            //将还款对象加入还款计划列表
+            lendReturnList.add(lendReturn);
+        }
+        //批量保存还款计划
+        lendReturnService.saveBatch(lendReturnList);
+        //生成期数和还款计划的id对应的键值对集合
+        Map<Integer, Long> lendReturnMap =
+                lendReturnList.stream().collect(Collectors.toMap(LendReturn::getCurrentPeriod, LendReturn::getId));
+        //创建所有所有投资的所有回款记录列表
+        List<LendItemReturn> lendItemReturnAllList = new ArrayList<>();
+        //获取当前标的下的所有的已支付的投资(lendItem)
+        List<LendItem> lendItems = lendItemService.selectByLendId(lend.getId(), 1);
+        for (LendItem lendItem : lendItems) {
+            //当前投资人的所有回款计划
+            List<LendItemReturn> lendItemReturnList = this.returnInvest(lendItem.getId(), lendReturnMap, lend);
+            lendItemReturnAllList.addAll(lendItemReturnList);
+        }
+        //遍历还款记录列表
+        for (LendReturn lendReturn : lendReturnList) {
+            ////设置借款人每期要还的本金
+            BigDecimal sumPrincipal = lendItemReturnAllList.stream()
+                    .filter(item -> item.getLendReturnId().longValue() == lendReturn.getId().longValue())
+                    .map(LendItemReturn::getPrincipal)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+            //设置借款人每期要还的利息
+            lendReturn.setPrincipal(sumPrincipal);
+            BigDecimal sumInterest = lendItemReturnAllList.stream()
+                    .filter(item -> item.getLendReturnId().longValue() == lendReturn.getId().longValue())
+                    .map(LendItemReturn::getInterest)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+            lendReturn.setInterest(sumInterest);
+            //设置借款人每期要还的总金额
+            BigDecimal sumTotal = lendItemReturnAllList.stream()
+                    .filter(item -> item.getLendReturnId().longValue() == lendReturn.getId().longValue())
+                    .map(LendItemReturn::getTotal)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+            lendReturn.setTotal(sumTotal);
+        }
+        //批量更新
+        lendReturnService.updateBatchById(lendReturnList);
+    }
+
+    //回款计划(每个投资人的所有期数的回款计划)
+    public List<LendItemReturn> returnInvest(Long lendItemId, Map<Integer, Long> lendReturnMap, Lend lend) {
+
+        //投标信息
+        LendItem lendItem = lendItemService.getById(lendItemId);
+        //投资金额
+        BigDecimal amount = lendItem.getInvestAmount();
+        //年化利率
+        BigDecimal yearRate = lendItem.getLendYearRate();
+        //投资期数
+        Integer totalMonth = lend.getPeriod();
+
+        //计算本金和利息，存储为集合
+        //key:还款期数， value：利息
+        Map<Integer, BigDecimal> mapInterest = null;
+        //key:还款期数， value:本金
+        Map<Integer, BigDecimal> mapPrincipal = null;
+
+        //根据还款方式计算本金和利息
+        if (lend.getReturnMethod().intValue() == ReturnMethodEnum.ONE.getMethod()) {
+            //利息
+            mapInterest = Amount1Helper.getPerMonthInterest(amount, yearRate, totalMonth);
+            //本金
+            mapPrincipal = Amount1Helper.getPerMonthPrincipal(amount, yearRate, totalMonth);
+        } else if (lend.getReturnMethod().intValue() == ReturnMethodEnum.TWO.getMethod()) {
+            //利息
+            mapInterest = Amount2Helper.getPerMonthInterest(amount, yearRate, totalMonth);
+            //本金
+            mapPrincipal = Amount2Helper.getPerMonthPrincipal(amount, yearRate, totalMonth);
+        } else if (lend.getReturnMethod().intValue() == ReturnMethodEnum.THREE.getMethod()) {
+            //利息
+            mapInterest = Amount3Helper.getPerMonthInterest(amount, yearRate, totalMonth);
+            //本金
+            mapPrincipal = Amount3Helper.getPerMonthPrincipal(amount, yearRate, totalMonth);
+        } else {
+            //利息
+            mapInterest = Amount4Helper.getPerMonthInterest(amount, yearRate, totalMonth);
+            //本金
+            mapPrincipal = Amount4Helper.getPerMonthPrincipal(amount, yearRate, totalMonth);
+        }
+        //创建回款计划列表
+        List<LendItemReturn> lendItemReturnList = new ArrayList<>();
+        for (Map.Entry<Integer, BigDecimal> entry : mapInterest.entrySet()) {
+            //当前期数
+            Integer currentPeriod = entry.getKey();
+            Long lendReturnId = lendReturnMap.get(currentPeriod);
+            //创建还款计划记录
+            LendItemReturn lendItemReturn = new LendItemReturn();
+            lendItemReturn.setLendReturnId(lendReturnId);
+            lendItemReturn.setLendItemId(lendItemId);
+            lendItemReturn.setInvestUserId(lendItem.getInvestUserId());
+            lendItemReturn.setLendId(lendItem.getLendId());
+            lendItemReturn.setInvestAmount(lendItem.getInvestAmount());
+            lendItemReturn.setLendYearRate(lend.getLendYearRate());
+            lendItemReturn.setCurrentPeriod(currentPeriod);
+            lendItemReturn.setReturnMethod(lend.getReturnMethod());
+            //计算回款本金，利息和总额（注意最后一个月的计算）
+            if (currentPeriod.intValue() == lend.getPeriod().intValue()) {//最后一期
+                //本金
+                BigDecimal sumPrincipal = lendItemReturnList.stream()
+                        .map(LendItemReturn::getPrincipal)
+                        .reduce(BigDecimal.ZERO, BigDecimal::add);
+                BigDecimal lastPrincipal = lendItem.getInvestAmount().subtract(sumPrincipal);
+                lendItemReturn.setPrincipal(lastPrincipal);
+                //利息
+                BigDecimal sumInterest = lendItemReturnList.stream()
+                        .map(LendItemReturn::getInterest)
+                        .reduce(BigDecimal.ZERO, BigDecimal::add);
+                BigDecimal lastInterest = lendItem.getExpectAmount().subtract(sumInterest);
+                lendItemReturn.setInterest(lastInterest);
+
+            } else {//非最后一期
+                //本金
+                lendItemReturn.setPrincipal(mapPrincipal.get(currentPeriod));
+                //利息
+                lendItemReturn.setInterest(mapInterest.get(currentPeriod));
+            }
+            //回款总金额
+            lendItemReturn.setTotal(lendItemReturn.getPrincipal().add(lendItemReturn.getInterest()));
+            lendItemReturn.setFee(new BigDecimal("0"));
+            lendItemReturn.setReturnDate(lend.getLendStartDate().plusMonths(currentPeriod));
+            //是否逾期，默认未逾期
+            lendItemReturn.setOverdue(false);
+            lendItemReturn.setStatus(0);
+            //将回款记录放入回款列表
+            lendItemReturnList.add(lendItemReturn);
+        }
+        //批量保存
+        lendItemReturnService.saveBatch(lendItemReturnList);
+        return lendItemReturnList;
+    }
+
 }

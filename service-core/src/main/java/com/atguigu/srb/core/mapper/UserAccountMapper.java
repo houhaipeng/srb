@@ -16,6 +16,7 @@ import java.math.BigDecimal;
  */
 public interface UserAccountMapper extends BaseMapper<UserAccount> {
 
+    //更改user_account表的amount和freezeAmount
     void updateAccount(@Param("bindCode") String bindCode,
                        @Param("amount") BigDecimal amount,
                        @Param("freezeAmount") BigDecimal freezeAmount);

@@ -1,5 +1,7 @@
 package com.atguigu.srb.core.service.impl;
 
+import com.atguigu.common.exception.Assert;
+import com.atguigu.common.result.ResponseEnum;
 import com.atguigu.srb.core.enums.TransTypeEnum;
 import com.atguigu.srb.core.hfb.FormHelper;
 import com.atguigu.srb.core.hfb.HfbConst;
@@ -11,9 +13,11 @@ import com.atguigu.srb.core.mapper.UserAccountMapper;
 import com.atguigu.srb.core.pojo.entity.UserInfo;
 import com.atguigu.srb.core.service.TransFlowService;
 import com.atguigu.srb.core.service.UserAccountService;
+import com.atguigu.srb.core.service.UserBindService;
 import com.atguigu.srb.core.util.LendNoUtils;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -31,6 +35,7 @@ import java.util.Map;
  * @since 2021-02-20
  */
 @Service
+@Slf4j
 public class UserAccountServiceImpl extends ServiceImpl<UserAccountMapper, UserAccount> implements UserAccountService {
 
     @Resource
@@ -38,6 +43,12 @@ public class UserAccountServiceImpl extends ServiceImpl<UserAccountMapper, UserA
 
     @Resource
     private TransFlowService transFlowService;
+
+    @Resource
+    private UserBindService userBindService;
+
+    @Resource
+    private UserAccountService userAccountService;
 
     @Override
     public String commitCharge(BigDecimal chargeAmt, Long userId) {
@@ -96,6 +107,60 @@ public class UserAccountServiceImpl extends ServiceImpl<UserAccountMapper, UserA
         UserAccount userAccount = baseMapper.selectOne(userAccountQueryWrapper);
 
         return userAccount.getAmount();
+    }
+
+    @Override
+    public String commitWithdraw(BigDecimal fetchAmt, Long userId) {
+
+        //用户账户余额
+        BigDecimal amount = userAccountService.getAccount(userId);
+        Assert.isTrue(amount.doubleValue() >= fetchAmt.doubleValue(),
+                ResponseEnum.NOT_SUFFICIENT_FUNDS_ERROR);
+
+
+
+        String bindCode = userBindService.getBindCodeByUserId(userId);
+
+        Map<String, Object> paramMap = new HashMap<>();
+        paramMap.put("agentId", HfbConst.AGENT_ID);
+        paramMap.put("agentBillNo", LendNoUtils.getWithdrawNo());
+        paramMap.put("bindCode", bindCode);
+        //提现金额
+        paramMap.put("fetchAmt", fetchAmt);
+        paramMap.put("feeAmt", new BigDecimal(0));
+        paramMap.put("notifyUrl", HfbConst.WITHDRAW_NOTIFY_URL);
+        paramMap.put("returnUrl", HfbConst.WITHDRAW_RETURN_URL);
+        paramMap.put("timestamp", RequestHelper.getTimestamp());
+        String sign = RequestHelper.getSign(paramMap);
+        paramMap.put("sign", sign);
+
+        //构建自动提交表单
+        String formStr = FormHelper.buildForm(HfbConst.WITHDRAW_URL, paramMap);
+        return formStr;
+    }
+
+    @Override
+    public void notifyWithdraw(Map<String, Object> paramMap) {
+
+        //幂等判断
+        log.info("提现成功");
+        String agentBillNo = (String) paramMap.get("agentBillNo");
+        boolean result = transFlowService.isSaveTransFlow(agentBillNo);
+        if (result) {
+            log.warn("幂等性返回");
+            return;
+        }
+
+        //账户同步
+        String bindCode = (String) paramMap.get("bindCode");
+        String fetchAmt = (String) paramMap.get("fetchAmt");
+        baseMapper.updateAccount(bindCode, new BigDecimal(fetchAmt).negate(), new BigDecimal(0));
+
+        //交易流水
+        TransFlowBO transFlowBO = new TransFlowBO(
+                agentBillNo, bindCode, new BigDecimal(fetchAmt),
+                TransTypeEnum.WITHDRAW, "提现");
+        transFlowService.saveTransFlow(transFlowBO);
     }
 
 
