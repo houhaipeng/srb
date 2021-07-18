@@ -19,6 +19,13 @@
             <version>0.0.1-SNAPSHOT</version>
         </dependency>
 
+        <!--rabbitmq消息队列-->
+        <dependency>
+            <groupId>com.atguigu</groupId>
+            <artifactId>rabbit-mq</artifactId>
+            <version>0.0.1-SNAPSHOT</version>
+        </dependency>
+
         <!--mysql-->
         <dependency>
             <groupId>mysql</groupId>

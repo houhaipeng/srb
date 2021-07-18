@@ -17,6 +17,13 @@
             <artifactId>service-base</artifactId>
             <version>0.0.1-SNAPSHOT</version>
         </dependency>
+
+        <!--rabbitmq消息队列-->
+        <dependency>
+            <groupId>com.atguigu</groupId>
+            <artifactId>rabbit-mq</artifactId>
+            <version>0.0.1-SNAPSHOT</version>
+        </dependency>
         <dependency>
             <groupId>com.aliyun</groupId>
             <artifactId>aliyun-java-sdk-core</artifactId>

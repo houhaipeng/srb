@@ -21,6 +21,12 @@ spring:
     nacos:
       discovery:
         server-addr: localhost:8848
+  rabbitmq:
+    host: 192.168.0.108
+    port: 5672
+    virtual-host: /srbhost
+    username: hhp
+    password: 123456
 
 
 #阿里云短信
