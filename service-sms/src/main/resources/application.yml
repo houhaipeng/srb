@@ -33,8 +33,8 @@ spring:
 aliyun:
   sms:
     region-id: cn-shanghai
-    key-id: LTAI5tRf9exKZvsN7iosbcAU
-    key-secret: QW81vTiP4DupBwy8L8Vf90DBeCTcya
+    key-id: key-id
+    key-secret: key-secret
     template-code: 模版
     sign-name: 签名
 
